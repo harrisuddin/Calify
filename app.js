@@ -1,85 +1,152 @@
-const { google } = require("googleapis");
 const express = require("express");
+var cookieParser = require("cookie-parser");
+var session = require("express-session");
+var bodyParser = require("body-parser");
+var morgan = require("morgan");
+// const { verifyJWT, generateJWT } = require("./static/auth");
+// const jwt = require("jsonwebtoken");
+var { User } = require("./models/user");
+const mongoose = require("mongoose");
+const GoogleWrapper = require("./classes/GoogleWrapper");
+const SpotifyWrapper = require("./classes/SpotifyWrapper");
+//const oauthRoute = require("./routes/oauth2callback");
 require("dotenv/config");
-//const OAuth2Data = require("./google_key.json");
+
+let google = new GoogleWrapper(null, null, null, process.env.CLIENT_ID, process.env.CLIENT_SECRET, "profile email openid", "code"); // https://www.googleapis.com/auth/calendar add later to scope
+let spotify = new SpotifyWrapper(null, null, null, process.env.SPOT_CLIENT_ID, process.env.SPOT_CLIENT_SECRET, "user-read-recently-played user-read-email", "code");
 
 const app = express();
 
-// const CLIENT_ID = OAuth2Data.client.id;
-// const CLIENT_SECRET = OAuth2Data.client.secret;
-// const REDIRECT_URL = OAuth2Data.client.redirect;
+// initialize body-parser to parse incoming parameters requests to req.body
+app.use(bodyParser.urlencoded({ extended: true }));
 
-const oAuth2Client = new google.auth.OAuth2(
-  process.env.CLIENT_ID,
-  process.env.CLIENT_SECRET,
-  process.env.REDIRECT_URL
+// initialize cookie-parser to allow us access the cookies stored in the browser.
+app.use(cookieParser(process.env.COOKIE_SECRET));
+
+// set morgan to log info about our requests for development use.
+app.use(morgan("dev"));
+
+// initialize express-session to allow us track the logged-in user across sessions.
+app.use(
+  session({ secret: process.env.COOKIE_SECRET, cookie: { maxAge: 300000 } })
 );
 
-var authed = false;
+// TASK: fix authentication
+app.use((req, res, next) => {
+  // const decoded = verifyJWT(req.cookies.user_jwt);
+  // if (!decoded) {
+  //   res.clearCookie('user_jwt');
+  //   req.session.user = {test: "hi"};
+  // } else {
+  //   req.session.user = decoded;
+  // }
+  if (!req.session.user) {
+    req.session.user = {};
+  }
 
-app.get("/", (req, res) => {
-  if (!authed) {
-    // Generate an OAuth URL and redirect there
-    const url = oAuth2Client.generateAuthUrl({
-      access_type: "offline",
-      scope: ["email", "profile", "openid"],
-    });
-    //console.log(url);
+  next();
+});
+
+// TASK: less code duplication
+/**
+ * This handles the oauth callbacks from GOOG and SPOT
+ * When this endpoint is hit, the code is retrieved from the get parameters and then used to get the
+ * tokens from the APIs. Then the user is redirected back to the login/signup page for now   
+ */
+app.use("/oauth2callback", express.Router()
+  .get("/google/login", async (req, res) => {
+
+    await google.handleLoginSignup(req, res, process.env.REDIRECT_URL_LOGIN);
+    const url = process.env.URL + "/login";
     res.redirect(url);
+
+  })
+  .get("/google/signup", async (req, res) => {
+
+    await google.handleLoginSignup(req, res, process.env.REDIRECT_URL_SIGNUP);
+    const url = process.env.URL + "/signup";
+    res.redirect(url);
+
+  })
+  .get("/spotify/signup", async (req, res) => {
+
+    await spotify.handleLoginSignup(req, res, process.env.SPOT_REDIRECT_URL_SIGNUP);
+    const url = process.env.URL + "/signup";
+    res.redirect(url);
+
+  })
+);
+
+app.get("/login", async (req, res) => {
+  if (!req.session.user.google_email) {
+    redirectGoogleLogin(res);
   } else {
-    // const gmail = google.gmail({ version: "v1", auth: oAuth2Client });
-    // gmail.users.labels.list(
-    //   {
-    //     userId: "me",
-    //   },
-    //   (err, res) => {
-    //     if (err) return console.log("The API returned an error: " + err);
-    //     const labels = res.data.labels;
-    //     if (labels.length) {
-    //       console.log("Labels:");
-    //       labels.forEach((label) => {
-    //         console.log(`- ${label.name}`);
-    //       });
-    //     } else {
-    //       console.log("No labels found.");
-    //     }
-    //   }
-    // );
-    // res.send("Logged in");
-    var oauth2 = google.oauth2({
-      auth: oAuth2Client,
-      version: "v2",
-    });
-
-    oauth2.userinfo.v2.me.get(function (err, result) {
-      if (err) {
-        console.log(err);
-      } else {
-        //console.log(res);
-        res.send(result);
-      }
-    });
+    try {
+      const { google_email } = req.session.user;
+      let user = await User.findOne({ google_email });
+      if (!user) return res.status(404).send("User not found");
+      req.session.user = { _id: user._id, google_email };
+      res.send("Logged in");
+    } catch (err) {
+      console.err(err);
+      res.send("Error, something went wrong.");
+    }
   }
 });
 
-app.get("/oauth2callback", function (req, res) {
-  const code = req.query.code;
-  if (code) {
-    // Get an access token based on our OAuth code
-    oAuth2Client.getToken(code, function (err, tokens) {
-      if (err) {
-        console.log("Error authenticating");
-        console.log(err);
-      } else {
-        console.log("Successfully authenticated");
-        console.log(tokens);
-        oAuth2Client.setCredentials(tokens);
-        authed = true;
-        res.redirect("/");
-      }
-    });
+// TASK: clean up
+app.get("/signup", async (req, res) => {
+  if (!req.session.user.google_access_token) {
+    redirectGoogleSignUp(res);
+  } else if (!req.session.user.spotify_access_token) {
+    let user = await User.findOne({ google_email: req.session.user.google_email });
+    if (user) return res.status(404).send("User already exists.");
+    redirectSpotifySignUp(res);
+  } else {
+    const { google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, google_access_token_expiry, spotify_access_token_expiry } = req.session.user;
+    user = new User({ google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, spotify_access_token_expiry, google_access_token_expiry });
+    try {
+      await user.save();
+      req.session.user = { _id: user._id, google_email };
+      res.send({ google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, google_access_token_expiry, spotify_access_token_expiry });
+    } catch (err) {
+      console.log(err);
+      res.send("Error, something went wrong.");
+    }
   }
 });
 
+// for testing
+app.get("/session", (req, res) => {
+  res.send(req.session.user);
+});
+
+// Redirect functions
+
+function redirectGoogleLogin(res) {
+  res.redirect(google.getOAuthURL(process.env.REDIRECT_URL_LOGIN));
+}
+
+function redirectGoogleSignUp(res) {
+  res.redirect(google.getOAuthURL(process.env.REDIRECT_URL_SIGNUP));
+}
+
+function redirectSpotifySignUp(res) {
+  res.redirect(spotify.getOAuthURL(process.env.SPOT_REDIRECT_URL_SIGNUP));
+}
+
+// route for handling 404 requests(unavailable routes)
+app.use(function (req, res, next) {
+  res.status(404).send("Sorry can't find that!");
+});
+
+// Connect to DB
+mongoose.set("useUnifiedTopology", true);
+mongoose.set("useCreateIndex", true);
+mongoose.connect(process.env.DB_CONNECTION, { useNewUrlParser: true }, () => {
+  console.log("Connected to DB");
+});
+
+// start server
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running at ${port}`));
