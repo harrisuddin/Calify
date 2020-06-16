@@ -38,6 +38,10 @@ const userSchema = mongoose.Schema({
   spotify_refresh_token: {
     type: String,
     required: true
+  },
+  google_calendar_id: {
+    type: String,
+    required: true
   }
 });
 
@@ -52,7 +56,8 @@ function validateUser(user) {
     spotify_access_token: Joi.string().required(),
     spotify_refresh_token: Joi.string().required(),
     spotify_access_token_expiry: Joi.string().required(),
-    google_access_token_expiry: Joi.string().required()
+    google_access_token_expiry: Joi.string().required(),
+    google_calendar_id: Joi.string().required()
   });
 
   return schema.validate(user);
