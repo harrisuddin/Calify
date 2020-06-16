@@ -2,8 +2,8 @@ const APIWrapper = require("./APIWrapper");
 const { encodeFormData, getExpiryTime } = require("../static/helper");
 
 class SpotifyWrapper extends APIWrapper {
-  constructor(AT, RT, ATExpiry, clientID, clientSecret, scope, response_type) {
-    super(AT, RT, ATExpiry, clientID, clientSecret, scope, response_type);
+  constructor(accessToken, refreshToken, ATExpiry, clientID, clientSecret, scope, response_type) {
+    super(accessToken, refreshToken, ATExpiry, clientID, clientSecret, scope, response_type);
   }
 
   getOAuthURL(redirect_uri) {
@@ -48,20 +48,44 @@ class SpotifyWrapper extends APIWrapper {
     );
   }
 
-  async handleLoginSignup(req, res, redirectURI) {
-    const tokens = await this.handleOAuth(redirectURI, req.query.code);
-    if (tokens.errorCode) res.status(404).send("Error, something went wrong.");
+  async handleLoginSignup(req, redirectURI) {
+    const hls = await super.handleLoginSignup(req.query.code, redirectURI);
+    if (hls.errorCode) return hls;
 
-    this.accessToken = tokens.access_token;
-    const profile = await this.getUserInfo();
-    if (profile.errorCode) res.status(404).send("Error, something went wrong.");
-
-    req.session.user.spotify_access_token = tokens.access_token;
-    req.session.user.spotify_refresh_token = tokens.refresh_token;
-    req.session.user.spotify_email = profile.email;
-    req.session.user.spotify_access_token_expiry = getExpiryTime(tokens.expires_in - 100);
+    req.session.user.spotify_access_token = hls.tokens.access_token;
+    req.session.user.spotify_refresh_token = hls.tokens.refresh_token;
+    req.session.user.spotify_email = hls.profile.email;
+    req.session.user.spotify_access_token_expiry = getExpiryTime(hls.tokens.expires_in - 100);
     
+    return true;
   }
+
+  // formatTracks(tracks) {
+  //   let newTracks = [];
+  //   tracks.forEach((elem, i) => {
+  //     // console.dir(elem);
+  //     const title = elem.track.name;
+  //     const songArtists = elem.track.artists.map(artist => artist.name).join(", "); 
+  //     const startTime = elem.played_at;
+  //     const endTime = new Date(new Date(startTime).getTime() + elem.track.duration_ms).toISOString();
+
+  //     newTracks[i] = {title, artists: songArtists, startTime, endTime};
+
+  //   });
+  //   return newTracks;
+  // }
+
+  formatTrack(elem) {
+    const startTime = elem.played_at;
+    const endTime = new Date(new Date(startTime).getTime() + elem.track.duration_ms).toISOString();
+    return {
+      title: elem.track.name,
+      artists: elem.track.artists.map(artist => artist.name).join(" • "),
+      startTime,
+      endTime
+    }
+  }
+  
 }
 
 module.exports = SpotifyWrapper;
