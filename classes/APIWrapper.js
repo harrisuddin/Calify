@@ -9,9 +9,9 @@ const {
 class APIWrapper {
   // AT: the access token for the API
   // RT: the refresh token for the API
-  constructor(AT, RT, ATExpiry, clientID, clientSecret, scope, response_type) {
-    this.accessToken = AT;
-    this.refreshToken = RT;
+  constructor(accessToken, refreshToken, ATExpiry, clientID, clientSecret, scope, response_type) {
+    this.accessToken = accessToken;
+    this.refreshToken = refreshToken;
     this.accessTokenExpiry = ATExpiry;
     this.expiryLength = 3600; // 1 hour in seconds.
     this.clientID = clientID;
@@ -27,12 +27,12 @@ class APIWrapper {
   //     this.refreshTokenExpiry = RTExpiry;
   // }
 
-  set setAccessToken(AT) {
-    this.accessToken = AT;
+  set setAccessToken(accessToken) {
+    this.accessToken = accessToken;
   }
 
-  set setRefreshToken(RT) {
-    this.accessToken = RT;
+  set setRefreshToken(refreshToken) {
+    this.accessToken = refreshToken;
   }
 
   set setAccessTokenExpiry(ATExpiry) {
@@ -174,6 +174,32 @@ class APIWrapper {
     const json = await this.postRequest(url, body, headers);
     return json;
   }
+
+  async handleLoginSignup(code, redirectURI) {
+    const tokens = await this.handleOAuth(redirectURI, code);
+    if (tokens.errorCode) return tokens;
+
+    this.accessToken = tokens.access_token;
+    const profile = await this.getUserInfo();
+    if (profile.errorCode) return profile;
+
+    return {tokens, profile};
+  }
+
+  /**
+   * Check if the access token is valid and if not then reset it
+   * via the resetAccessToken function.
+   * Return an error object or the access token
+   */
+  async validateAccessToken() {
+    if (!this.isAccessTokenValid()) {
+      const json = await this.resetAccessToken();
+      if (json.errorCode) return json;
+      this.accessToken = json.access_token;
+    }
+    return this.accessToken;
+  }
+
 }
 
 module.exports = APIWrapper;
