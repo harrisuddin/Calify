@@ -7,13 +7,17 @@ var morgan = require("morgan");
 // const jwt = require("jsonwebtoken");
 var { User } = require("./models/user");
 const mongoose = require("mongoose");
+var CronJob = require("cron").CronJob;
 const GoogleWrapper = require("./classes/GoogleWrapper");
 const SpotifyWrapper = require("./classes/SpotifyWrapper");
 //const oauthRoute = require("./routes/oauth2callback");
 require("dotenv/config");
+const googleScope = "profile email openid https://www.googleapis.com/auth/calendar";
+const spotifyScope = "user-read-recently-played user-read-email";
+const responseType = "code";
 
-let google = new GoogleWrapper(null, null, null, process.env.CLIENT_ID, process.env.CLIENT_SECRET, "profile email openid", "code"); // https://www.googleapis.com/auth/calendar add later to scope
-let spotify = new SpotifyWrapper(null, null, null, process.env.SPOT_CLIENT_ID, process.env.SPOT_CLIENT_SECRET, "user-read-recently-played user-read-email", "code");
+let google = new GoogleWrapper(null, null, null, process.env.CLIENT_ID, process.env.CLIENT_SECRET, googleScope, responseType, null);
+let spotify = new SpotifyWrapper(null, null, null, process.env.SPOT_CLIENT_ID, process.env.SPOT_CLIENT_SECRET, spotifyScope, responseType);
 
 const app = express();
 
@@ -56,21 +60,24 @@ app.use((req, res, next) => {
 app.use("/oauth2callback", express.Router()
   .get("/google/login", async (req, res) => {
 
-    await google.handleLoginSignup(req, res, process.env.REDIRECT_URL_LOGIN);
+    const hls = await google.handleLoginSignup(req, process.env.REDIRECT_URL_LOGIN);
+    if (hls.errorCode) return res.status(404).send("Error, something went wrong.");
     const url = process.env.URL + "/login";
     res.redirect(url);
 
   })
   .get("/google/signup", async (req, res) => {
 
-    await google.handleLoginSignup(req, res, process.env.REDIRECT_URL_SIGNUP);
+    const hls = await google.handleLoginSignup(req, process.env.REDIRECT_URL_SIGNUP);
+    if (hls.errorCode) return res.status(404).send("Error, something went wrong.");
     const url = process.env.URL + "/signup";
     res.redirect(url);
 
   })
   .get("/spotify/signup", async (req, res) => {
 
-    await spotify.handleLoginSignup(req, res, process.env.SPOT_REDIRECT_URL_SIGNUP);
+    const hls = await spotify.handleLoginSignup(req, process.env.SPOT_REDIRECT_URL_SIGNUP);
+    if (hls.errorCode) return res.status(404).send("Error, something went wrong.");
     const url = process.env.URL + "/signup";
     res.redirect(url);
 
@@ -82,11 +89,13 @@ app.get("/login", async (req, res) => {
     redirectGoogleLogin(res);
   } else {
     try {
-      const { google_email } = req.session.user;
+      const { google_email, google_access_token, google_access_token_expiry, google_refresh_token } = req.session.user;
       let user = await User.findOne({ google_email });
       if (!user) return res.status(404).send("User not found");
+      user = Object.assign(user, {google_access_token, google_access_token_expiry, google_refresh_token});
+      user.save();
       req.session.user = { _id: user._id, google_email };
-      res.send("Logged in");
+      res.send({google_email, google_access_token, google_access_token_expiry, google_refresh_token});
     } catch (err) {
       console.err(err);
       res.send("Error, something went wrong.");
@@ -104,11 +113,15 @@ app.get("/signup", async (req, res) => {
     redirectSpotifySignUp(res);
   } else {
     const { google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, google_access_token_expiry, spotify_access_token_expiry } = req.session.user;
-    user = new User({ google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, spotify_access_token_expiry, google_access_token_expiry });
+    google.accessToken = google_access_token;
+    // console.dir(google);
+    const google_calendar_id = await google.setupSpotifyCalendar();
+    if (google_calendar_id.errorCode) return res.status(404).send("Error, something went wrong.");
+    user = new User({ google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, spotify_access_token_expiry, google_access_token_expiry, google_calendar_id});
     try {
       await user.save();
       req.session.user = { _id: user._id, google_email };
-      res.send({ google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, google_access_token_expiry, spotify_access_token_expiry });
+      res.send({ google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, google_access_token_expiry, spotify_access_token_expiry, google_calendar_id});
     } catch (err) {
       console.log(err);
       res.send("Error, something went wrong.");
@@ -119,6 +132,12 @@ app.get("/signup", async (req, res) => {
 // for testing
 app.get("/session", (req, res) => {
   res.send(req.session.user);
+});
+
+
+app.get("/test", async (req, res) => {
+  await updateUsersCalendars();
+  res.send("hi");
 });
 
 // Redirect functions
@@ -134,6 +153,35 @@ function redirectGoogleSignUp(res) {
 function redirectSpotifySignUp(res) {
   res.redirect(spotify.getOAuthURL(process.env.SPOT_REDIRECT_URL_SIGNUP));
 }
+
+async function updateUsersCalendars() {
+  for await (let user of User.find()) {
+    let {_id, google_access_token, google_email, google_refresh_token, spotify_access_token, spotify_refresh_token, spotify_email, spotify_access_token_expiry, google_access_token_expiry, google_calendar_id} = user;
+
+    // create the api wrappers for this specific user
+    let userGoogleWrapper = new GoogleWrapper(google_access_token, google_refresh_token, google_access_token_expiry, process.env.CLIENT_ID, process.env.CLIENT_SECRET, googleScope, responseType, google_calendar_id);
+    let userSpotifyWrapper = new SpotifyWrapper(spotify_access_token, spotify_refresh_token, spotify_access_token_expiry, process.env.SPOT_CLIENT_ID, process.env.SPOT_CLIENT_SECRET, spotifyScope, responseType);
+
+    // validate the google and spotify tokens
+    const validateGoogleToken = await userGoogleWrapper.validateAccessToken();
+    if (validateGoogleToken.errorCode) continue;
+
+    const validateSpotifyToken = await userSpotifyWrapper.validateAccessToken();
+    if (validateSpotifyToken.errorCode) continue;
+
+    // get the previous songs
+    const json = await userSpotifyWrapper.getPreviousSongs();
+    if (json.errorCode) continue;
+    json.items.forEach(elem => {
+      const song = userSpotifyWrapper.formatTrack(elem);
+      const {title, artists, startTime, endTime} = song;
+      // console.log({startTime, endTime, title, artists});
+      userGoogleWrapper.addSongEvent(startTime, endTime, "UTC", title, artists);
+    });
+  }
+}
+
+// var job = new CronJob('* * * * * *', , null, true, "UTC");
 
 // route for handling 404 requests(unavailable routes)
 app.use(function (req, res, next) {
