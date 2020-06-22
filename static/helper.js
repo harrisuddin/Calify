@@ -1,7 +1,7 @@
 function encodeFormData(data) {
-    return Object.keys(data)
-      .map((key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
-      .join("&");
+  return Object.keys(data)
+  .map((key) => encodeURIComponent(key) + "=" + encodeURIComponent(data[key]))
+  .join("&");
 }
 
 function getURLWithParams(url, params) {
@@ -12,6 +12,12 @@ function getURLWithParams(url, params) {
 // returns the time it will be in t seconds as a string
 function getExpiryTime(t) {
   return new Date(Date.now() + (t * 1000)).toString();
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
 
 /** 
@@ -27,7 +33,4 @@ function compareTimeDifference(t1, t2, maxDifference) {
   return (diff >= maxDifference);
 }
 
-// module.encodeFormData = encodeFormData;
-// module.getURLWithParams = getURLWithParams;
-// module.compareTimeDifference = compareTimeDifference;
-module.exports = {encodeFormData, getURLWithParams, compareTimeDifference, getExpiryTime};
+module.exports = {encodeFormData, getURLWithParams, compareTimeDifference, getExpiryTime, sleep};
