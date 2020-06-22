@@ -114,6 +114,7 @@ class APIWrapper {
       return {
         errorCode: response.status,
         errorText: response.statusText,
+        headers: response.headers
       };
     } else {
       const json = await response.json();
