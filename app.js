@@ -12,42 +12,22 @@ const mongoose = require("mongoose");
 var CronJob = require("cron").CronJob;
 const GoogleWrapper = require("./classes/GoogleWrapper");
 const SpotifyWrapper = require("./classes/SpotifyWrapper");
-//const oauthRoute = require("./routes/oauth2callback");
 require("dotenv/config");
-const googleScope = "profile email openid https://www.googleapis.com/auth/calendar";
+const googleScope =
+  "profile email openid https://www.googleapis.com/auth/calendar";
 const spotifyScope = "user-read-recently-played user-read-email";
 const responseType = "code";
 
-let google = new GoogleWrapper(
-  null,
-  null,
-  null,
-  process.env.CLIENT_ID,
-  process.env.CLIENT_SECRET,
-  googleScope,
-  responseType,
-  null
-);
-let spotify = new SpotifyWrapper(
-  null,
-  null,
-  null,
-  process.env.SPOT_CLIENT_ID,
-  process.env.SPOT_CLIENT_SECRET,
-  spotifyScope,
-  responseType
-);
-
-const apiWrappers = {
-  spotify: spotify,
-  google: google,
-};
-
-const redirectURLs = {
-  "google login": process.env.REDIRECT_URL_LOGIN,
-  "google signup": process.env.REDIRECT_URL_SIGNUP,
-  "spotify signup": process.env.SPOT_REDIRECT_URL_SIGNUP,
-};
+/**
+ * TASKS:
+ * Create static functions for redirecting to urls x
+ * Add comments all round x
+ * Create /api endpoint to check if user is logged in
+ * Edit classes so they don't require responseType, scope, etc as args x
+ * Edit classes so they check obj has methods that it is calling x
+ * Encrypt access/refresh tokens in db
+ * Create getReqWithAT and postReqWithAT x
+ */
 
 const app = express();
 
@@ -61,7 +41,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 
 // set morgan to log info about our requests for development use.
-app.use(morgan("dev"));
+if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
 // initialize express-session to allow us track the logged-in user across sessions.
 app.use(
@@ -74,41 +54,110 @@ app.use(
 
 // TASK: fix authentication
 app.use((req, res, next) => {
-  // const decoded = verifyJWT(req.cookies.user_jwt);
-  // if (!decoded) {
-  //   res.clearCookie('user_jwt');
-  //   req.session.user = {test: "hi"};
-  // } else {
-  //   req.session.user = decoded;
-  // }
   if (!req.session.user) {
     req.session.user = {};
   }
-
   next();
 });
+
+// Create instantiations of the GoogleWrapper and SpotifyWrapper classes
+let google = new GoogleWrapper(
+  null,
+  null,
+  null,
+  process.env.CLIENT_ID,
+  process.env.CLIENT_SECRET,
+  null
+);
+let spotify = new SpotifyWrapper(
+  null,
+  null,
+  null,
+  process.env.SPOT_CLIENT_ID,
+  process.env.SPOT_CLIENT_SECRET
+);
+
+// Create helper objects for the /oauth2callback endpoint below
+const apiWrappers = {
+  spotify: spotify,
+  google: google,
+};
+const redirectURLs = {
+  "google login": process.env.REDIRECT_URL_LOGIN,
+  "google signup": process.env.REDIRECT_URL_SIGNUP,
+  "spotify signup": process.env.SPOT_REDIRECT_URL_SIGNUP,
+};
+
+// Redirect functions
+function redirectGoogleLogin(res) {
+  res.redirect(
+    GoogleWrapper.getOAuthURL(
+      process.env.REDIRECT_URL_LOGIN,
+      process.env.CLIENT_ID,
+      googleScope,
+      responseType
+    )
+  );
+}
+function redirectGoogleSignUp(res) {
+  res.redirect(
+    GoogleWrapper.getOAuthURL(
+      process.env.REDIRECT_URL_SIGNUP,
+      process.env.CLIENT_ID,
+      googleScope,
+      responseType
+    )
+  );
+}
+function redirectSpotifySignUp(res) {
+  res.redirect(
+    SpotifyWrapper.getOAuthURL(
+      process.env.SPOT_REDIRECT_URL_SIGNUP,
+      process.env.SPOT_CLIENT_ID,
+      spotifyScope,
+      responseType
+    )
+  );
+}
 
 /**
  * This handles the oauth callbacks from GOOG and SPOT
  * When this endpoint is hit, the code is retrieved from the get parameters and then used to get the
- * tokens from the APIs. Then the user is redirected back to the login/signup page for now
+ * tokens from the APIs. Then the user is redirected back to the login/signup endpoint
  */
 app.get("/oauth2callback/:service/:action", async (req, res) => {
   const { service = "", action = "" } = req.params;
-  if (!apiWrappers[service])
-    return res.status(404).send("Error, something went wrong.");
-  if (!(action === "login" || action === "signup"))
-    return res.status(404).send("Error, something went wrong.");
-  if (service === "spotify" && action === "login")
-    return res.status(404).send("Error, something went wrong."); // temporary
 
-  const hls = await apiWrappers[service].handleLoginSignup(req, redirectURLs[service + " " + action]
-);
-  if (hls.errorCode) return res.status(404).send("Error, something went wrong.");
+  // if the service and/or action is invalid
+  // then send an error
+  if (
+    !apiWrappers[service] ||
+    !(action === "login" || action === "signup") ||
+    (service === "spotify" && action === "login")
+  ) {
+    console.error(apiWrappers[service], action, service);
+    return res.status(404).send("Error, something went wrong.");
+  }
+
+  const hls = await apiWrappers[service].handleLoginSignup(
+    req,
+    redirectURLs[service + " " + action]
+  );
+  if (hls.errorCode) {
+    console.error(hls);
+    return res.status(404).send("Error, something went wrong.");
+  }
+
+  // after getting the details for a specific API service, redirect the user back to the login or signup endpoint 
   const url = process.env.URL + "/api/" + action;
   res.redirect(url);
 });
 
+/**
+ * If the user doesn't have the Google credentials (access/refresh token etc)
+ * then redirect them to sign in with Google.
+ * If they have the Google credentials, check they exist in db, save the latest tokens, and set their session variables.
+ */
 app.get("/api/login", async (req, res) => {
   const {
     google_email,
@@ -146,14 +195,18 @@ app.get("/api/login", async (req, res) => {
         google_refresh_token,
       });
     } catch (err) {
-      console.err(err);
+      console.error(err);
       req.session.user = null;
       res.status(404).send("Error, something went wrong.");
     }
   }
 });
 
-// TASK: clean up
+/**
+ * If the user doesn't have the Google and/or Spotify credentials (access/refresh token etc)
+ * then redirect them to sign in with Google and/or Spotify.
+ * If they have the Google and Spotify credentials, add their details to the db, and set their session variables.
+ */
 app.get("/api/signup", async (req, res) => {
   let user = null;
   const {
@@ -202,6 +255,7 @@ app.get("/api/signup", async (req, res) => {
     google.accessToken = google_access_token;
     const google_calendar_id = await google.setupSpotifyCalendar();
     if (google_calendar_id.errorCode) {
+      console.error(google_calendar_id);
       req.session.user = null;
       return res.status(404).send("Error, something went wrong.");
     }
@@ -231,7 +285,7 @@ app.get("/api/signup", async (req, res) => {
         google_calendar_id,
       });
     } catch (err) {
-      console.log(err);
+      console.error(err);
       req.session.user = null;
       res.status(404).send("Error, something went wrong.");
     }
@@ -247,20 +301,6 @@ app.get("/test", async (req, res) => {
   await updateUsersCalendars();
   res.send("hi");
 });
-
-// Redirect functions
-
-function redirectGoogleLogin(res) {
-  res.redirect(google.getOAuthURL(process.env.REDIRECT_URL_LOGIN));
-}
-
-function redirectGoogleSignUp(res) {
-  res.redirect(google.getOAuthURL(process.env.REDIRECT_URL_SIGNUP));
-}
-
-function redirectSpotifySignUp(res) {
-  res.redirect(spotify.getOAuthURL(process.env.SPOT_REDIRECT_URL_SIGNUP));
-}
 
 async function updateUsersCalendars() {
   for await (let user of User.find()) {
@@ -306,16 +346,24 @@ async function updateUsersCalendars() {
     if (validateSpotifyToken.errorCode) continue;
 
     // get the previous songs
-    const json = await userSpotifyWrapper.getPreviousSongs();
-    if (json.errorCode == 429) {
+    let previousSongs = await userSpotifyWrapper.getPreviousSongs();
+    if (previousSongs.errorCode != 429) continue;
+
+    // If there is rate-limiting, the retry-after header in the request
+    // will contain the number of seconds needed to wait before making another request.
+    if (previousSongs.errorCode == 429) {
       console.log("about to sleep...");
-      const sleepTime = json.headers.get("retry-after") * 1000;
+      const sleepTime = previousSongs.headers.get("retry-after") * 1000;
       await sleep(sleepTime);
-      json = await userSpotifyWrapper.getPreviousSongs();
+      previousSongs = await userSpotifyWrapper.getPreviousSongs();
+      if (previousSongs.errorCode) {
+        console.error(previousSongs);
+        continue;
+      }
     }
-    // if (json.errorCode) continue;
-    json.items.forEach((elem) => {
-      const song = userSpotifyWrapper.formatTrack(elem);
+
+    previousSongs.items.forEach((elem) => {
+      const song = SpotifyWrapper.formatTrack(elem);
       const { title, artists, startTime, endTime } = song;
       console.log({ startTime, endTime, title, artists });
       userGoogleWrapper.addSongEvent(startTime, endTime, "UTC", title, artists);
