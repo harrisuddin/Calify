@@ -1,14 +1,16 @@
 const APIWrapper = require("./APIWrapper");
 const { getExpiryTime } = require("../static/helper");
-// const defaultHeaders = {
-//   "Content-Type": "application/json",
-//   Accept: "application/json",
-//   Authorization: `Bearer ${this.accessToken}`
-// };
 
 class GoogleWrapper extends APIWrapper {
-  constructor(accessToken, refreshToken, ATExpiry, clientID, clientSecret, scope, response_type, calendarID) {
-    super(accessToken, refreshToken, ATExpiry, clientID, clientSecret, scope, response_type);
+  constructor(
+    accessToken,
+    refreshToken,
+    ATExpiry,
+    clientID,
+    clientSecret,
+    calendarID
+  ) {
+    super(accessToken, refreshToken, ATExpiry, clientID, clientSecret);
     this.calendarID = calendarID;
   }
 
@@ -16,17 +18,16 @@ class GoogleWrapper extends APIWrapper {
     return {
       "Content-Type": "application/json",
       Accept: "application/json",
-      Authorization: `Bearer ${this.accessToken}`
     };
   }
 
-  getOAuthURL(redirect_uri) {
-    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${this.clientID}&redirect_uri=${redirect_uri}&scope=${this.scope}&response_type=${this.response_type}&access_type=offline&include_granted_scopes=true`;
+  static getOAuthURL(redirect_uri, client_id, scope, response_type) {
+    return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${client_id}&redirect_uri=${redirect_uri}&scope=${scope}&response_type=${response_type}&access_type=offline&include_granted_scopes=true`;
   }
 
   async getUserInfo() {
     const access_token = this.accessToken;
-    const json = await this.requestWithAccessToken(
+    const json = await this.getReqWithAccessToken(
       `https://www.googleapis.com/oauth2/v1/userinfo`,
       { access_token }
     );
@@ -46,6 +47,9 @@ class GoogleWrapper extends APIWrapper {
     return json;
   }
 
+  /**
+   * Call the super function. Set the session cookie variables. Return true or an error object.
+   */
   async handleLoginSignup(req, redirectURI) {
     const hls = await super.handleLoginSignup(req.query.code, redirectURI);
     if (hls.errorCode) return hls;
@@ -68,10 +72,10 @@ class GoogleWrapper extends APIWrapper {
   }
 
   async getCalendarList() {
-    const json = await super.requestWithAccessToken(
+    const json = await this.getReqWithAccessToken(
       `https://www.googleapis.com/calendar/v3/users/me/calendarList`,
       {
-        showHidden: true
+        showHidden: true,
       }
     );
     return json;
@@ -79,27 +83,35 @@ class GoogleWrapper extends APIWrapper {
 
   async insertSpotifyCalendar() {
     const body = JSON.stringify({
-      summary: "Spotify"
+      summary: "Spotify",
     });
     const url = `https://www.googleapis.com/calendar/v3/calendars`;
-    const json = await this.postRequest(url, body, this.getDefaultHeaders());
+    const json = await this.postReqWithAccessToken(
+      url,
+      body,
+      this.getDefaultHeaders()
+    );
     return json;
   }
 
   async makeCalendarGreen() {
     const method = "PUT";
     const body = JSON.stringify({
-      colorId: "8"
+      colorId: "8",
     });
     const url = `https://www.googleapis.com/calendar/v3/users/me/calendarList/${this.calendarID}`;
-    const json = await this.request(url, method, body, this.getDefaultHeaders());
+    const headers = {
+      ...this.getDefaultHeaders(),
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    const json = await this.request(url, method, body, headers);
     return json;
   }
 
   /**
    * Create the Spotify calendar in the users Google calendar.
    * Change the colour of the calendar to green.
-   * Return an error object or the calendar id
+   * Return an error object or the calendar ID
    */
   async setupSpotifyCalendar() {
     const calendar = await this.insertSpotifyCalendar();
@@ -107,29 +119,38 @@ class GoogleWrapper extends APIWrapper {
     this.calendarID = calendar.id;
     const green = await this.makeCalendarGreen();
     if (green.errorCode) return green;
-    return calendar.id;
+    return this.calendarID;
   }
 
-  // summary means the title of the calendar event
-  // startTime and endTime are in the format 2020-05-09T23:46:27.499Z
-  async addSongEvent(startTime, endTime, timeZone, summary, description) { 
+  /**
+   * Make a request to Google Calendar API to add a song calendar event.
+   * @param {String} startTime Start time of the song/calendar event. ISO string format.
+   * @param {String} endTime End time of the song/calendar event. ISO string format.
+   * @param {String} timeZone The time zone (usually UTC). Assume the start and end time are in the same time zone
+   * @param {String} summary Title of the calendar event
+   * @param {String} description Description of the calendar event
+   */
+  async addSongEvent(startTime, endTime, timeZone, summary, description) {
     const body = JSON.stringify({
       start: {
         dateTime: startTime,
-        timeZone
+        timeZone,
       },
       end: {
         dateTime: endTime,
-        timeZone
+        timeZone,
       },
-      summary, 
-      description
+      summary,
+      description,
     });
     const url = `https://www.googleapis.com/calendar/v3/calendars/${this.calendarID}/events`;
-    const json = await this.postRequest(url, body, this.getDefaultHeaders());
+    const json = await this.postReqWithAccessToken(
+      url,
+      body,
+      this.getDefaultHeaders()
+    );
     return json;
   }
-
 }
 
 module.exports = GoogleWrapper;
