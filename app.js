@@ -228,8 +228,7 @@ app.get("/api/signup", async (req, res) => {
     !(
       google_email &&
       google_access_token &&
-      google_access_token_expiry &&
-      google_refresh_token
+      google_access_token_expiry
     )
   ) {
     redirectGoogleSignUp(res);
