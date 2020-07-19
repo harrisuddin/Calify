@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import NavBar from "../components/NavBar";
 import ColorRoundButton from "../components/ColorRoundButton";
 
-export default function ErrorPage() {
+export default function Error() {
 
   let error = new URLSearchParams(window.location.search).get("e");
 
