@@ -4,7 +4,7 @@ import ColorRoundButton from "../components/ColorRoundButton";
 
 export default function Home() {
   return (
-    <div className="">
+    <div>
       <NavBar />
 
       <div className="py-6 px-5 md:px-10 architect h-screen sm:py-24 flex items-center justify-center">

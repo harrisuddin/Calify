@@ -5,7 +5,7 @@ var bodyParser = require("body-parser");
 var morgan = require("morgan");
 const path = require("path");
 const { decrypt, encrypt } = require("./static/auth");
-const { sleep } = require("./static/helper");
+const { sleep, getURLWithParams } = require("./static/helper");
 var { User } = require("./models/user");
 const mongoose = require("mongoose");
 // eslint-disable-next-line no-unused-vars
@@ -125,6 +125,9 @@ function redirectSpotifySignUp(res) {
     )
   );
 }
+function redirectErrorPage(res, e) {
+  res.redirect(getURLWithParams(URL + '/error', {e}));
+}
 
 /**
  * This handles the oauth callbacks from GOOG and SPOT
@@ -142,7 +145,7 @@ app.get("/oauth2callback/:service/:action", async (req, res) => {
     (service === "spotify" && action === "login")
   ) {
     console.error(apiWrappers[service], action, service);
-    return res.status(404).send("Error, something went wrong.");
+    return redirectErrorPage(res, "Error, something went wrong");//res.status(404).send("Error, something went wrong.");
   }
 
   const hls = await apiWrappers[service].handleLoginSignup(
@@ -151,7 +154,7 @@ app.get("/oauth2callback/:service/:action", async (req, res) => {
   );
   if (hls.errorCode) {
     console.error(hls);
-    return res.status(404).send("Error, something went wrong.");
+    return redirectErrorPage(res, "Error, something went wrong");
   }
 
   // after getting the details for a specific API service, redirect the user back to the login or signup endpoint 
@@ -185,7 +188,7 @@ app.get("/api/login", async (req, res) => {
       let user = await User.findOne({ google_email });
       if (!user) {
         req.session.user = null;
-        return res.status(404).send("User not found");
+        return redirectErrorPage(res, "Sorry, we couldn't find this user, please sign up for an account");
       }
       let { _id } = user;
       user.google_refresh_token = encrypt(google_refresh_token, _id.toString());
@@ -200,7 +203,7 @@ app.get("/api/login", async (req, res) => {
     } catch (err) {
       console.error(err);
       req.session.user = null;
-      res.status(404).send("Error, something went wrong.");
+      return redirectErrorPage(res, "Error, something went wrong");
     }
   }
 });
@@ -242,25 +245,21 @@ app.get("/api/signup", async (req, res) => {
     user = await User.findOne({ google_email });
     if (user) {
       req.session.user = null;
-      return res
-        .status(404)
-        .send("This google email address is taken, please try again.");
+      return redirectErrorPage(res, "Sorry, this Google account is taken, please sign up with a different Google account");
     }
     redirectSpotifySignUp(res);
   } else {
     user = await User.findOne({ spotify_email });
     if (user) {
       req.session.user = null;
-      return res
-        .status(404)
-        .send("This spotify email address is taken, please try again.");
+      return redirectErrorPage(res, "Sorry, this Spotify account is taken, please sign up with a different Spotify account");
     }
     google.accessToken = google_access_token;
     const google_calendar_id = await google.setupSpotifyCalendar();
     if (google_calendar_id.errorCode) {
       console.error(google_calendar_id);
       req.session.user = null;
-      return res.status(404).send("Error, something went wrong.");
+      return redirectErrorPage(res, "Error, something went wrong")
     }
     user = new User({
       google_email,
@@ -291,7 +290,7 @@ app.get("/api/signup", async (req, res) => {
     } catch (err) {
       console.error(err);
       req.session.user = null;
-      res.status(404).send("Error, something went wrong.");
+      return redirectErrorPage(res, "Error, something went wrong");
     }
   }
 });
@@ -390,7 +389,7 @@ app.get("*", (req, res) => {
 // route for handling 404 requests(unavailable routes)
 // eslint-disable-next-line no-unused-vars
 app.use(function (req, res, next) {
-  res.status(404).send("Sorry can't find that!");
+  redirectErrorPage(res, "Sorry, couldn't find that page");
 });
 
 // Connect to DB
