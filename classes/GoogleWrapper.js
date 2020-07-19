@@ -42,7 +42,7 @@ class GoogleWrapper extends APIWrapper {
       redirect_uri: redirectURI,
       grant_type: "authorization_code",
     });
-    const url = `https://www.googleapis.com/oauth2/v4/token`;
+    const url = `https://oauth2.googleapis.com/token`;
     const json = await this.postRequest(url, body, {}); // there is no headers in this case
     return json;
   }
@@ -71,15 +71,15 @@ class GoogleWrapper extends APIWrapper {
     return json;
   }
 
-  async getCalendarList() {
-    const json = await this.getReqWithAccessToken(
-      `https://www.googleapis.com/calendar/v3/users/me/calendarList`,
-      {
-        showHidden: true,
-      }
-    );
-    return json;
-  }
+  // async getCalendarList() {
+  //   const json = await this.getReqWithAccessToken(
+  //     `https://www.googleapis.com/calendar/v3/users/me/calendarList`,
+  //     {
+  //       showHidden: true,
+  //     }
+  //   );
+  //   return json;
+  // }
 
   async insertSpotifyCalendar() {
     const body = JSON.stringify({
