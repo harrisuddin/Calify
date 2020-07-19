@@ -43,14 +43,6 @@
     }
 } 
 
-.grid-container {
-    display: grid;
-    grid-template-columns: 200px;
-    grid-template-rows: 1fr 1fr 1fr;
-    gap: 2rem 0px;
-    grid-template-areas: ". ." ". ." ". .";
-}
-
 .steps-container {
     @apply items-center;
     @apply justify-center;
@@ -61,9 +53,9 @@
 @screen sm {
     .steps-container {
         display: grid;
-        grid-template-columns: 200px 350px;
+        grid-template-columns: 12.5rem 21.875rem;
         grid-template-rows: 1fr 1fr 1fr;
-        gap: 2rem 0px;
+        gap: 1.5rem 0px;
         grid-template-areas: ". ." ". ." ". .";
     }
 }
@@ -77,8 +69,5 @@
 .round-button:focus {
     @apply outline-none;
 }
-
-@import url("https://fonts.googleapis.com/css2?family=Inter&display=swap");
-@import url('https://fonts.googleapis.com/css2?family=Abril+Fatface&display=swap');
 
 @import "tailwindcss/utilities";

@@ -76,11 +76,11 @@ const NavBar = () => {
         >
           <Link
             otherClasses=""
-            href="#"
+            href="#howtouse"
             color="gray-500"
             hoverColor="gray-900"
             focusColor="gray-900"
-            text="Features"
+            text="How do I use it?"
           />
           <Link
             otherClasses="mt-1 sm:mt-0 sm:ml-2"

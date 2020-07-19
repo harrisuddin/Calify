@@ -27,19 +27,19 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="pt-12 pb-32 px-3 sm:px-16 bg-gray-200 h-full">
-        <h2 id="howtouse" className="text-center font-semibold text-2xl sm:text-3xl">How do I use it?</h2>
+      <div className="pb-32 px-3 sm:px-16 bg-gray-200 h-full">
+        <h2 id="howtouse" className="pt-16 text-center font-semibold text-2xl sm:text-3xl">How do I use it?</h2>
         <div className="steps-container my-12">
           <div className="numberInCircle mx-auto shadow-lg">1</div>
-          <h2 className="text-xl sm:text-2xl text-center sm:text-left font-semibold p-2">
+          <h2 className="text-lg sm:text-2xl text-center sm:text-left font-medium p-2">
             Click try it now!
           </h2>
           <div className="mt-8 sm:mt-0 numberInCircle mx-auto shadow-lg">2</div>
-          <h2 className="text-xl sm:text-2xl text-center sm:text-left font-semibold p-2">
+          <h2 className="text-lg sm:text-2xl text-center sm:text-left font-medium p-2">
             Sign in with your Spotify and Google account.
           </h2>
           <div className="mt-8 sm:mt-0 numberInCircle mx-auto shadow-lg">3</div>
-          <h2 className="text-xl sm:text-2xl text-center sm:text-left font-semibold p-2">
+          <h2 className="text-lg sm:text-2xl text-center sm:text-left font-medium p-2">
             That's it! Your Spotify history will automatically add to your Google calendar.
           </h2>
         </div>
