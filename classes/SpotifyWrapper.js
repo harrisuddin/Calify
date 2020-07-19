@@ -17,9 +17,14 @@ class SpotifyWrapper extends APIWrapper {
     return await this.getReqWithAccessToken(`https://api.spotify.com/v1/me`);
   }
 
-  async getPreviousSongs() {
+  /**
+   * Return the previous songs after a certain point.
+   * @param {*} afterTime UNIX timestamp to get songs after a certain point. If after is null then it is not included in the parameters 
+   */
+  async getPreviousSongs(afterTime) {
     return await this.getReqWithAccessToken(
-      `https://api.spotify.com/v1/me/player/recently-played`
+      `https://api.spotify.com/v1/me/player/recently-played`, 
+      (afterTime ? {after: afterTime} : {})
     );
   }
 

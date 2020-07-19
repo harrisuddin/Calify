@@ -17,6 +17,7 @@ class APIWrapper {
   }
 
   isAccessTokenValid() {
+    if (!this.accessTokenExpiry) return false;
     return compareTimeDifference(
       Date().toString(),
       this.accessTokenExpiry,
@@ -71,6 +72,9 @@ class APIWrapper {
 
   /**
    * Make a GET request with the access token in the header
+   * @param {*} url The url you are making a request to 
+   * @param {*} params An object containing all the parameters of the request 
+   * @param {*} headers An object containing all the headers of the request
    */
   async getReqWithAccessToken(url, params, headers) {
     const newURL = getURLWithParams(url, params);
