@@ -159,6 +159,7 @@ app.get("/oauth2callback/:service/:action", async (req, res) => {
 
   // after getting the details for a specific API service, redirect the user back to the login or signup endpoint 
   const url = URL + "/api/" + action;
+  console.log(url);
   res.redirect(url);
 });
 
