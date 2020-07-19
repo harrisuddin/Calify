@@ -31,7 +31,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser(COOKIE_SECRET));
 
 // set morgan to log info about our requests for development use.
-if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
+// if (process.env.NODE_ENV === "development") 
+app.use(morgan("dev"));
 
 // initialize express-session to allow us track the logged-in user across sessions.
 app.use(
@@ -126,7 +127,7 @@ function redirectSpotifySignUp(res) {
   );
 }
 function redirectErrorPage(res, e) {
-  res.redirect(getURLWithParams(URL + '/error', {e}));
+  return res.redirect(getURLWithParams(URL + '/error', {e}));
 }
 
 /**
@@ -159,6 +160,7 @@ app.get("/oauth2callback/:service/:action", async (req, res) => {
 
   // after getting the details for a specific API service, redirect the user back to the login or signup endpoint 
   const url = URL + "/api/" + action;
+  console.log(url);
   res.redirect(url);
 });
 
@@ -172,14 +174,12 @@ app.get("/api/login", async (req, res) => {
     google_email,
     google_access_token,
     google_access_token_expiry,
-    google_refresh_token,
   } = req.session.user;
   if (
     !(
       google_email &&
       google_access_token &&
-      google_access_token_expiry &&
-      google_refresh_token
+      google_access_token_expiry
     )
   ) {
     redirectGoogleLogin(res);
@@ -197,8 +197,7 @@ app.get("/api/login", async (req, res) => {
       res.send({
         google_email,
         google_access_token,
-        google_access_token_expiry,
-        google_refresh_token,
+        google_access_token_expiry
       });
     } catch (err) {
       console.error(err);
