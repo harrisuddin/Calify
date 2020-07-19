@@ -9,14 +9,6 @@ const userSchema = mongoose.Schema({
     maxlength: 255,
     unique: true
   },
-  google_access_token: {
-    type: String,
-    required: true
-  },
-  google_access_token_expiry: {
-    type: String,
-    required: true
-  },
   google_refresh_token: {
     type: String,
     required: true
@@ -27,14 +19,6 @@ const userSchema = mongoose.Schema({
     maxlength: 255,
     unique: true
   },
-  spotify_access_token: {
-    type: String,
-    required: true
-  },
-  spotify_access_token_expiry: {
-    type: String,
-    required: true
-  },
   spotify_refresh_token: {
     type: String,
     required: true
@@ -42,6 +26,11 @@ const userSchema = mongoose.Schema({
   google_calendar_id: {
     type: String,
     required: true
+  },
+  // a unix timestamp for when the calendar was last updated
+  calendar_last_updated: {
+    type: String,
+    default: ''
   }
 });
 
@@ -51,13 +40,10 @@ function validateUser(user) {
   const schema = Joi.object({
     google_email: Joi.string().min(5).max(255).required().email(),
     spotify_email: Joi.string().min(5).max(255).required().email(),
-    google_access_token: Joi.string().required(),
-    google_refresh_token: Joi.string().required(),
-    spotify_access_token: Joi.string().required(),
-    spotify_refresh_token: Joi.string().required(),
-    spotify_access_token_expiry: Joi.string().required(),
-    google_access_token_expiry: Joi.string().required(),
-    google_calendar_id: Joi.string().required()
+    google_refresh_token: Joi.required(),
+    spotify_refresh_token: Joi.required(),
+    google_calendar_id: Joi.string().required(),
+    calendar_last_updated: Joi.string()
   });
 
   return schema.validate(user);
