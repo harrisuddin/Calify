@@ -53,6 +53,7 @@ class GoogleWrapper extends APIWrapper {
   async handleLoginSignup(req, redirectURI) {
     const hls = await super.handleLoginSignup(req.query.code, redirectURI);
     if (hls.errorCode) return hls;
+    console.log(hls);
 
     req.session.user.google_access_token = hls.tokens.access_token;
     req.session.user.google_refresh_token = hls.tokens.refresh_token;
