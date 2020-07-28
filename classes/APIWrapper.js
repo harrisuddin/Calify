@@ -107,6 +107,14 @@ class APIWrapper {
     return await this.request(url, method, body, headers);
   }
 
+  /**
+   * Helper method for making GET requests
+   */
+  async getRequest(url, headers) {
+    const method = "GET";
+    return await this.request(url, method, null, headers);
+  }
+
   async resetAccessToken(url) {
     const body = encodeFormData({
       grant_type: "refresh_token",
