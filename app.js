@@ -31,8 +31,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser(COOKIE_SECRET));
 
 // set morgan to log info about our requests for development use.
-// if (process.env.NODE_ENV === "development") 
-app.use(morgan("dev"));
+if (process.env.NODE_ENV === "development") app.use(morgan("dev"));
 
 // initialize express-session to allow us track the logged-in user across sessions.
 app.use(
@@ -160,7 +159,6 @@ app.get("/oauth2callback/:service/:action", async (req, res) => {
 
   // after getting the details for a specific API service, redirect the user back to the login or signup endpoint 
   const url = URL + "/api/" + action;
-  console.log(url);
   res.redirect(url);
 });
 
