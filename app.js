@@ -189,7 +189,6 @@ app.get("/api/login", async (req, res) => {
         return redirectErrorPage(res, "Sorry, we couldn't find this user, please sign up for an account");
       }
       let { _id } = user;
-      user.google_refresh_token = encrypt(google_refresh_token, _id.toString());
       user.save();
       req.session.user = {_id, google_email };
       res.send({
@@ -226,7 +225,8 @@ app.get("/api/signup", async (req, res) => {
     !(
       google_email &&
       google_access_token &&
-      google_access_token_expiry
+      google_access_token_expiry &&
+      google_refresh_token
     )
   ) {
     redirectGoogleSignUp(res);
