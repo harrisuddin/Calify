@@ -1,5 +1,5 @@
 const APIWrapper = require("./APIWrapper");
-const { getExpiryTime } = require("../static/helper");
+const { getExpiryTime, getURLWithParams } = require("../static/helper");
 
 class GoogleWrapper extends APIWrapper {
   constructor(
@@ -26,12 +26,10 @@ class GoogleWrapper extends APIWrapper {
   }
 
   async getUserInfo() {
-    const access_token = this.accessToken;
-    const json = await this.getReqWithAccessToken(
+    return await this.getReqWithAccessToken(
       `https://www.googleapis.com/oauth2/v1/userinfo`,
-      { access_token }
+      { access_token: this.accessToken}
     );
-    return json;
   }
 
   async handleOAuth(redirectURI, code) {
@@ -43,8 +41,7 @@ class GoogleWrapper extends APIWrapper {
       grant_type: "authorization_code",
     });
     const url = `https://oauth2.googleapis.com/token`;
-    const json = await this.postRequest(url, body, {}); // there is no headers in this case
-    return json;
+    return await this.postRequest(url, body, {}); // there is no headers in this case
   }
 
   /**
@@ -66,10 +63,9 @@ class GoogleWrapper extends APIWrapper {
   }
 
   async resetAccessToken() {
-    const json = await super.resetAccessToken(
+    return await super.resetAccessToken(
       `https://oauth2.googleapis.com/token`
     );
-    return json;
   }
 
   // async getCalendarList() {
@@ -87,12 +83,11 @@ class GoogleWrapper extends APIWrapper {
       summary: "Spotify",
     });
     const url = `https://www.googleapis.com/calendar/v3/calendars`;
-    const json = await this.postReqWithAccessToken(
+    return await this.postReqWithAccessToken(
       url,
       body,
       this.getDefaultHeaders()
     );
-    return json;
   }
 
   async makeCalendarGreen() {
@@ -105,8 +100,7 @@ class GoogleWrapper extends APIWrapper {
       ...this.getDefaultHeaders(),
       Authorization: `Bearer ${this.accessToken}`,
     };
-    const json = await this.request(url, method, body, headers);
-    return json;
+    return await this.request(url, method, body, headers);
   }
 
   /**
@@ -145,12 +139,19 @@ class GoogleWrapper extends APIWrapper {
       description,
     });
     const url = `https://www.googleapis.com/calendar/v3/calendars/${this.calendarID}/events`;
-    const json = await this.postReqWithAccessToken(
+    return await this.postReqWithAccessToken(
       url,
       body,
       this.getDefaultHeaders()
     );
-    return json;
+  }
+
+  /**
+   * Revoke the application access for a particular user, given the refresh token
+   */
+  async revokeAccess() {
+    const url = getURLWithParams('https://oauth2.googleapis.com/revoke', {token: this.refreshToken});
+    return await this.getRequest(url, this.getDefaultHeaders());
   }
 }
 
