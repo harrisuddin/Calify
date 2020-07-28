@@ -3,7 +3,7 @@ import Link from "./Link";
 // import { Link as Route } from "react-router-dom";
 import ColorRoundButton from "./ColorRoundButton";
 
-const NavBar = () => {
+const NavBar = ({children}) => {
   const [isOpen, setOpen] = useState(false);
   const [notScrolled, setScrolled] = useState(true);
 
@@ -26,7 +26,7 @@ const NavBar = () => {
   return (
     <nav
       className={
-        "sm:flex sm:justify-between sm:items-center px-2 sm:px-8 sm:py-2 fixed w-full " +
+        "sm:flex sm:justify-between sm:items-center px-2 sm:px-8 sm:py-2 fixed w-full z-10 " +
         (notScrolled ? "sm:bg-transparent bg-white" : "bg-white shadow-md")
       }
     >
@@ -74,37 +74,7 @@ const NavBar = () => {
             (isOpen ? "block" : "hidden")
           }
         >
-          <Link
-            otherClasses=""
-            href="#howtouse"
-            color="gray-500"
-            hoverColor="gray-900"
-            focusColor="gray-900"
-            text="How do I use it?"
-          />
-          <Link
-            otherClasses="mt-1 sm:mt-0 sm:ml-2"
-            href="#"
-            color="gray-500"
-            hoverColor="gray-900"
-            focusColor="gray-900"
-            text="About Us"
-          />
-          <Link
-            otherClasses="mt-1 sm:mt-0 sm:ml-2 sm:mr-2"
-            href="#"
-            color="gray-500"
-            hoverColor="gray-900"
-            focusColor="gray-900"
-            text="Something"
-          />
-          <ColorRoundButton
-            text="Try it now!"
-            textColor="white"
-            colorA="brandBlue-A"
-            colorB="brandBlue-B"
-            otherClasses="mt-1 sm:mt-0 py-2 px-4"
-          />
+          {children}
         </nav>
       }
     </nav>
