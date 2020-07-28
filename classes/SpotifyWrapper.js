@@ -19,7 +19,7 @@ class SpotifyWrapper extends APIWrapper {
 
   /**
    * Return the previous songs after a certain point.
-   * @param {*} afterTime UNIX timestamp to get songs after a certain point. If after is null then it is not included in the parameters 
+   * @param {*} afterTime UNIX timestamp to get songs after a certain point. If afterTime is null then it is not included in the parameters 
    */
   async getPreviousSongs(afterTime) {
     return await this.getReqWithAccessToken(
@@ -41,8 +41,7 @@ class SpotifyWrapper extends APIWrapper {
       Accept: "application/json",
     };
     const url = `https://accounts.spotify.com/api/token`;
-    const json = await this.postRequest(url, body, headers);
-    return json;
+    return await this.postRequest(url, body, headers);
   }
 
   async resetAccessToken() {
