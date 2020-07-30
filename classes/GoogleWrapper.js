@@ -1,5 +1,5 @@
 const APIWrapper = require("./APIWrapper");
-const { getExpiryTime, getURLWithParams } = require("../static/helper");
+const { getExpiryTime } = require("../static/helper");
 
 class GoogleWrapper extends APIWrapper {
   constructor(
@@ -28,7 +28,7 @@ class GoogleWrapper extends APIWrapper {
   async getUserInfo() {
     return await this.getReqWithAccessToken(
       `https://www.googleapis.com/oauth2/v1/userinfo`,
-      { access_token: this.accessToken}
+      { access_token: this.accessToken }
     );
   }
 
@@ -63,9 +63,7 @@ class GoogleWrapper extends APIWrapper {
   }
 
   async resetAccessToken() {
-    return await super.resetAccessToken(
-      `https://oauth2.googleapis.com/token`
-    );
+    return await super.resetAccessToken(`https://oauth2.googleapis.com/token`);
   }
 
   // async getCalendarList() {
@@ -149,9 +147,11 @@ class GoogleWrapper extends APIWrapper {
   /**
    * Revoke the application access for a particular user, given the refresh token
    */
-  async revokeAccess() {
-    const url = getURLWithParams('https://oauth2.googleapis.com/revoke', {token: this.refreshToken});
-    return await this.getRequest(url, this.getDefaultHeaders());
+  async revokeAccess(token) {
+    const url = `https://oauth2.googleapis.com/revoke?token=${token}`;
+    return await super.getRequest(url, {
+      "Content-type": "application/x-www-form-urlencoded",
+    });
   }
 }
 
