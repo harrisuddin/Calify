@@ -1,2 +1,2 @@
-# SpotifyCalendarIntegration
-A Spotify calendar integration that let's you see what you were listening to.
+# Calify
+Calify is a application that automatically syncs your Spotify history to your Google calendar. 
