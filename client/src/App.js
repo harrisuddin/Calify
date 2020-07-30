@@ -2,8 +2,7 @@ import React from 'react';
 import {
   BrowserRouter as Router,
   Switch,
-  Route,
-  Link
+  Route
 } from 'react-router-dom';
 import Home from './pages/Home';
 import Error from './pages/Error';
@@ -15,12 +14,6 @@ function App() {
         <Route path="/error">
           <Error/>
         </Route>
-        <Route path="/success">
-          <Error/>
-        </Route>
-        {/* <Route path="/settings">
-          <Settings/>
-        </Route> */}
         <Route path="/">
           <Home/>
         </Route>

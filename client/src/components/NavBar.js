@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import Link from "./Link";
-// import { Link as Route } from "react-router-dom";
-import ColorRoundButton from "./ColorRoundButton";
 
 const NavBar = ({children}) => {
   const [isOpen, setOpen] = useState(false);
@@ -38,7 +36,7 @@ const NavBar = ({children}) => {
           </h1> */}
           <Link
             otherClasses=""
-            href="#"
+            href="/"
             color="gray-500"
             hoverColor="gray-900"
             focusColor="gray-900"
@@ -54,12 +52,12 @@ const NavBar = ({children}) => {
             <svg className="h-6 w-6 fill-current" viewBox="0 0 24 24">
               {isOpen ? (
                 <path
-                  fill-rule="evenodd"
+                  fillRule="evenodd"
                   d="M18.278 16.864a1 1 0 0 1-1.414 1.414l-4.829-4.828-4.828 4.828a1 1 0 0 1-1.414-1.414l4.828-4.829-4.828-4.828a1 1 0 0 1 1.414-1.414l4.829 4.828 4.828-4.828a1 1 0 1 1 1.414 1.414l-4.828 4.829 4.828 4.828z"
                 />
               ) : (
                 <path
-                  fill-rule="evenodd"
+                  fillRule="evenodd"
                   d="M4 5h16a1 1 0 0 1 0 2H4a1 1 0 1 1 0-2zm0 6h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2zm0 6h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2z"
                 />
               )}

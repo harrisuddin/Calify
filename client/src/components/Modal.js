@@ -1,14 +1,43 @@
-import React from "react";
+import React, { useState } from "react";
 import ColorRoundButton from "../components/ColorRoundButton";
+import { deleteUser } from "../api";
 
-export default function Modal({ showModal, setShowModal }) {
+export default function Modal({ showModal, setShowModal, userDetails }) {
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
+
+  function timeSince(date) {
+    var seconds = Math.floor((new Date() - date) / 1000);
+
+    var interval = Math.floor(seconds / 31536000);
+
+    if (interval > 1) {
+      return interval + " years";
+    }
+    interval = Math.floor(seconds / 2592000);
+    if (interval > 1) {
+      return interval + " months";
+    }
+    interval = Math.floor(seconds / 86400);
+    if (interval > 1) {
+      return interval + " days";
+    }
+    interval = Math.floor(seconds / 3600);
+    if (interval > 1) {
+      return interval + " hours";
+    }
+    interval = Math.floor(seconds / 60);
+    if (interval > 1) {
+      return interval + " minutes";
+    }
+    return Math.floor(seconds) + " seconds";
+  }
+
   return (
     <>
       {showModal ? (
         <>
           <div
             className="justify-center items-center flex overflow-x-hidden overflow-y-auto fixed inset-0 z-50 outline-none focus:outline-none"
-            // onClick={() => setShowModal(false)}
           >
             <div className="relative w-auto my-6 mx-auto max-w-3xl">
               {/*content*/}
@@ -26,22 +55,17 @@ export default function Modal({ showModal, setShowModal }) {
                   </button>
                 </div>
                 {/*body*/}
-                <div className="relative p-6 flex-auto overflow-y-scroll" style={{maxHeight: '20rem'}}>
-                  {/* <p className="my-4 text-gray-600 text-lg leading-relaxed">
-                    I always felt like I could do anything. That’s the main
-                    thing people are controlled by! Thoughts- their perception
-                    of themselves! They're slowed down by their perception of
-                    themselves. If you're taught you can’t do anything, you
-                    won’t do anything. I was taught I could do everything.
-                  </p> */}
-
+                <div
+                  className="relative p-6 flex-auto overflow-y-scroll"
+                  style={{ maxHeight: "20rem" }}
+                >
                   <h2 className="text-2xl font-semibold">Account Details</h2>
                   <div className="flex items-center justify-between my-6">
                     <div>
                       <h2>Google account:</h2>
                     </div>
                     <div className="ml-8">
-                      <h2>harris7001@gmail.com</h2>
+                      <h2>{userDetails.google_email}</h2>
                     </div>
                   </div>
 
@@ -50,7 +74,7 @@ export default function Modal({ showModal, setShowModal }) {
                       <h2>Spotify account:</h2>
                     </div>
                     <div className="ml-8">
-                      <h2>harry0446@gmail.com</h2>
+                      <h2>{userDetails.spotify_email}</h2>
                     </div>
                   </div>
 
@@ -60,39 +84,52 @@ export default function Modal({ showModal, setShowModal }) {
                     </div>
                     <div className="ml-8">
                       <ColorRoundButton
-                        text="Delete"
+                        text={showDeleteButton ? "Cancel" : "Delete"}
                         textColor="white"
                         colorA="red-500"
                         colorB="red-700"
-                        otherClasses="mt-1 sm:mt-0 py-2 px-4"
-                        href="#"
+                        otherClasses="mt-1 sm:mt-0 py-2 px-4 cursor-pointer"
+                        onClick={() => setShowDeleteButton(!showDeleteButton)}
                       />
                     </div>
                   </div>
-
+                  {showDeleteButton ? (
+                    <ColorRoundButton
+                      text={"Delete Account"}
+                      textColor="white"
+                      colorA="red-500"
+                      colorB="red-700"
+                      otherClasses="my-2 py-2 px-4 cursor-pointer block text-center"
+                      onClick={() =>
+                        deleteUser()
+                          .then((json) => {
+                            if (json.error) throw new Error();
+                            alert("Your account has been deleted.");
+                            window.location.reload();
+                          })
+                          .catch(() =>
+                            alert(
+                              "Your account couldn't be deleted, please try again."
+                            )
+                          )
+                      }
+                    />
+                  ) : null}
                   <h2 className="text-2xl font-semibold">Calendar Details</h2>
                   <div className="flex items-center justify-between my-6">
                     <div>
                       <h2>Calendar last updated:</h2>
                     </div>
                     <div className="ml-8">
-                      <h2>2 days ago</h2>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between my-6">
-                    <div>
-                      <h2>Refresh calendar:</h2>
-                    </div>
-                    <div className="ml-8">
-                      <ColorRoundButton
-                        text="Refresh"
-                        textColor="white"
-                        colorA="brandBlue-A"
-                        colorB="brandBlue-B"
-                        otherClasses="mt-1 sm:mt-0 py-2 px-4"
-                        href="#"
-                      />
+                      <h2>
+                        {userDetails.calendar_last_updated === ""
+                          ? "N/A"
+                          : timeSince(
+                              new Date(
+                                parseInt(userDetails.calendar_last_updated)
+                              )
+                            ) + " ago"}
+                      </h2>
                     </div>
                   </div>
                 </div>
@@ -105,14 +142,6 @@ export default function Modal({ showModal, setShowModal }) {
                     onClick={() => setShowModal(false)}
                   >
                     Close
-                  </button>
-                  <button
-                    className="bg-green-500 text-white active:bg-green-600 font-bold uppercase text-sm px-6 py-3 rounded shadow hover:shadow-lg outline-none focus:outline-none mr-1 mb-1"
-                    type="button"
-                    style={{ transition: "all .15s ease" }}
-                    onClick={() => setShowModal(false)}
-                  >
-                    Save Changes
                   </button>
                 </div>
               </div>

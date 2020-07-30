@@ -7,9 +7,11 @@ export default function ColorRoundButton({
   colorB,
   textColor,
   href,
+  onClick
 }) {
   return (
     <a
+      onClick={onClick}
       href={href}
       className={
         "text-" +
