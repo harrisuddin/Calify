@@ -42,28 +42,11 @@ app.use(
   })
 );
 
-// TASK: fix authentication
 app.use((req, res, next) => {
   if (!req.session.user) {
     req.session.user = {};
   }
   next();
-});
-
-// if the session variables contain the users id and google email
-// then let them go to the requested page
-// if they don't, redirect them to home page 
-function isLoggedIn(req, res, next) {
-  if (req.session.user._id && req.session.user.google_email) {
-    next();
-  } else {
-    res.redirect(URL);
-  }
-}
-
-// test
-app.use('/secret', isLoggedIn, (req, res) => {
-  res.json("u made it");
 });
 
 // Create instantiations of the GoogleWrapper and SpotifyWrapper classes
@@ -190,12 +173,8 @@ app.get("/api/login", async (req, res) => {
       }
       let { _id } = user;
       user.save();
-      req.session.user = {_id, google_email };
-      res.send({
-        google_email,
-        google_access_token,
-        google_access_token_expiry
-      });
+      req.session.user = { _id, google_email };
+      return res.redirect(URL);
     } catch (err) {
       console.error(err);
       req.session.user = null;
@@ -272,17 +251,7 @@ app.get("/api/signup", async (req, res) => {
       });
       await user.save();
       req.session.user = { _id, google_email };
-      res.send({
-        google_access_token,
-        google_email,
-        google_refresh_token,
-        spotify_access_token,
-        spotify_refresh_token,
-        spotify_email,
-        google_access_token_expiry,
-        spotify_access_token_expiry,
-        google_calendar_id,
-      });
+      return res.redirect(URL);
     } catch (err) {
       console.error(err);
       req.session.user = null;
@@ -291,14 +260,23 @@ app.get("/api/signup", async (req, res) => {
   }
 });
 
-// for testing
-app.get("/session", (req, res) => {
-  res.send(req.session.user);
+app.use('/api/accountDetails', async (req, res) => {
+  const {_id, google_email} = req.session.user;
+  if (!(_id && google_email)) return res.status(400).send({error: "Not logged in."});
+  let user = await User.findOne({_id});
+  if (!user) return res.status(400).send({error: "User not found."});
+  const {calendar_last_updated, spotify_email} = user;
+  res.json({calendar_last_updated, spotify_email, google_email});
 });
 
-app.get("/test", async (req, res) => {
-  await updateUsersCalendars();
-  res.send("hi");
+app.use('/api/deleteAccount', async (req, res) => {
+  const {_id, google_email} = req.session.user;
+  if (!(_id && google_email)) return res.status(400).send({error: "Not logged in."});
+  User.deleteOne({_id}, (err) => {
+    if (err) res.status(400).send({error: "User couldn't be deleted."});
+    req.session.user = null;
+    res.json({message: "User deleted"});
+  })
 });
 
 async function updateCalendar(user) {
@@ -375,17 +353,12 @@ async function updateUsersCalendars() {
   }
 }
 
-//var job = new CronJob('* * * * * *', updateUsersCalendars, null, true, "UTC");
+// every 3 hours, call updateUsersCalendar 
+var job = new CronJob('0 0 */3 * * *', updateUsersCalendars, null, true, "UTC");
 
 // Handles any requests that don't match the ones above
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname + "/client/build/index.html"));
-});
-
-// route for handling 404 requests(unavailable routes)
-// eslint-disable-next-line no-unused-vars
-app.use(function (req, res, next) {
-  redirectErrorPage(res, "Sorry, couldn't find that page");
 });
 
 // Connect to DB
